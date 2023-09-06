@@ -143,12 +143,15 @@ class LightningBaseModel(pl.LightningModule):
 
     def test_step(self, data_dict, batch_idx):
         indices = data_dict['indices']
+        #print('INDICES: ', indices.cpu())
         origin_len = data_dict['origin_len']
         raw_labels = data_dict['raw_labels'].squeeze(1).cpu()
         path = data_dict['path'][0]
 
         vote_logits = torch.zeros((len(raw_labels), self.num_classes))
+        #print('VOTE LOGITS: ', vote_logits)
         data_dict = self.forward(data_dict)
+        #print('DATA DICT LOGITS: ', data_dict['logits'].cpu())
         vote_logits.index_add_(0, indices.cpu(), data_dict['logits'].cpu())
 
         if self.args['dataset_params']['pc_dataset_type'] == 'SemanticKITTI_multiscan':
@@ -175,8 +178,9 @@ class LightningBaseModel(pl.LightningModule):
                 components = path.split('/')
                 sequence = components[-3]
                 points_name = components[-1]
-                label_name = points_name.replace('bin', 'label')
-                full_save_dir = os.path.join(self.submit_dir, 'sequences', sequence, 'predictions')
+                #label_name = points_name.replace('bin', 'label')
+                label_name = points_name.replace('pkl.gz', 'label')
+                full_save_dir = os.path.join(self.submit_dir, 'sequences', sequence)
                 os.makedirs(full_save_dir, exist_ok=True)
                 full_label_name = os.path.join(full_save_dir, label_name)
 

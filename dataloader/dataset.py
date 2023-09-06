@@ -143,20 +143,20 @@ class point_image_dataset_semkitti(data.Dataset):
                 ref_index[drop_idx] = ref_index[0]
 
         # load 2D data
-        image = data['img']
-        proj_matrix = data['proj_matrix']
+        #image = data['img']
+        #proj_matrix = data['proj_matrix']
 
         # project points into image
-        keep_idx = xyz[:, 0] > 0  # only keep point in front of the vehicle
-        points_hcoords = np.concatenate([xyz[keep_idx], np.ones([keep_idx.sum(), 1], dtype=np.float32)], axis=1)
-        img_points = (proj_matrix @ points_hcoords.T).T
-        img_points = img_points[:, :2] / np.expand_dims(img_points[:, 2], axis=1)  # scale 2D points
-        keep_idx_img_pts = self.select_points_in_frustum(img_points, 0, 0, *image.size)
-        keep_idx[keep_idx] = keep_idx_img_pts
+        #keep_idx = xyz[:, 0] > 0  # only keep point in front of the vehicle
+        #points_hcoords = np.concatenate([xyz[keep_idx], np.ones([keep_idx.sum(), 1], dtype=np.float32)], axis=1)
+        #img_points = (proj_matrix @ points_hcoords.T).T
+        #img_points = img_points[:, :2] / np.expand_dims(img_points[:, 2], axis=1)  # scale 2D points
+        #keep_idx_img_pts = self.select_points_in_frustum(img_points, 0, 0, *image.size)
+        #keep_idx[keep_idx] = keep_idx_img_pts
 
         # fliplr so that indexing is row, col and not col, row
-        img_points = np.fliplr(img_points)
-        points_img = img_points[keep_idx_img_pts]
+        #img_points = np.fliplr(img_points)
+        #points_img = img_points[keep_idx_img_pts]
 
         ### 3D Augmentation ###
         # random data augmentation by rotation
@@ -188,12 +188,12 @@ class point_image_dataset_semkitti(data.Dataset):
 
             xyz[:, 0:3] += noise_translate
 
-        img_label = labels[keep_idx]
-        point2img_index = np.arange(len(labels))[keep_idx]
+        #img_label = labels[keep_idx]
+        #point2img_index = np.arange(len(labels))[keep_idx]
         feat = np.concatenate((xyz, sig), axis=1)
 
         ### 2D Augmentation ###
-        if self.bottom_crop:
+        '''if self.bottom_crop:
             # self.bottom_crop is a tuple (crop_width, crop_height)
             left = int(np.random.rand() * (image.size[0] + 1 - self.bottom_crop[0]))
             right = left + self.bottom_crop[0]
@@ -234,7 +234,7 @@ class point_image_dataset_semkitti(data.Dataset):
             mean, std = self.image_normalizer
             mean = np.asarray(mean, dtype=np.float32)
             std = np.asarray(std, dtype=np.float32)
-            image = (image - mean) / std
+            image = (image - mean) / std'''
 
         data_dict = {}
         data_dict['point_feat'] = feat
@@ -247,10 +247,10 @@ class point_image_dataset_semkitti(data.Dataset):
         data_dict['origin_len'] = origin_len
         data_dict['root'] = root
 
-        data_dict['img'] = image
-        data_dict['img_indices'] = img_indices
-        data_dict['img_label'] = img_label
-        data_dict['point2img_index'] = point2img_index
+        #data_dict['img'] = image
+        #data_dict['img_indices'] = img_indices
+        #data_dict['img_label'] = img_label
+        #data_dict['point2img_index'] = point2img_index
 
         return data_dict
 
@@ -349,20 +349,20 @@ class point_image_dataset_mix_semkitti(data.Dataset):
                 ref_index[drop_idx] = ref_index[0]
 
         # load 2D data
-        image = data['img']
-        proj_matrix = data['proj_matrix']
+        #image = data['img']
+        #proj_matrix = data['proj_matrix']
 
         # project points into image
-        keep_idx = xyz[:, 0] > 0  # only keep point in front of the vehicle
-        points_hcoords = np.concatenate([xyz[keep_idx], np.ones([keep_idx.sum(), 1], dtype=np.float32)], axis=1)
-        img_points = (proj_matrix @ points_hcoords.T).T
-        img_points = img_points[:, :2] / np.expand_dims(img_points[:, 2], axis=1)  # scale 2D points
-        keep_idx_img_pts = self.select_points_in_frustum(img_points, 0, 0, *image.size)
-        keep_idx[keep_idx] = keep_idx_img_pts
+        #keep_idx = xyz[:, 0] > 0  # only keep point in front of the vehicle
+        #points_hcoords = np.concatenate([xyz[keep_idx], np.ones([keep_idx.sum(), 1], dtype=np.float32)], axis=1)
+        #img_points = (proj_matrix @ points_hcoords.T).T
+        #img_points = img_points[:, :2] / np.expand_dims(img_points[:, 2], axis=1)  # scale 2D points
+        #keep_idx_img_pts = self.select_points_in_frustum(img_points, 0, 0, *image.size)
+        #keep_idx[keep_idx] = keep_idx_img_pts
 
         # fliplr so that indexing is row, col and not col, row
-        img_points = np.fliplr(img_points)
-        points_img = img_points[keep_idx_img_pts]
+        #img_points = np.fliplr(img_points)
+        #points_img = img_points[keep_idx_img_pts]
 
         ### 3D Augmentation ###
         # random data augmentation by rotation
@@ -394,12 +394,12 @@ class point_image_dataset_mix_semkitti(data.Dataset):
 
             xyz[:, 0:3] += noise_translate
 
-        img_label = labels[keep_idx]
-        point2img_index = np.arange(len(labels))[keep_idx]
+        #img_label = labels[keep_idx]
+        #point2img_index = np.arange(len(labels))[keep_idx]
         feat = np.concatenate((xyz, sig), axis=1)
 
         ### 2D Augmentation ###
-        if self.bottom_crop:
+        '''if self.bottom_crop:
             # self.bottom_crop is a tuple (crop_width, crop_height)
             left = int(np.random.rand() * (image.size[0] + 1 - self.bottom_crop[0]))
             right = left + self.bottom_crop[0]
@@ -440,7 +440,7 @@ class point_image_dataset_mix_semkitti(data.Dataset):
             mean, std = self.image_normalizer
             mean = np.asarray(mean, dtype=np.float32)
             std = np.asarray(std, dtype=np.float32)
-            image = (image - mean) / std
+            image = (image - mean) / std'''
 
         data_dict = {}
         data_dict['point_feat'] = feat
@@ -453,10 +453,10 @@ class point_image_dataset_mix_semkitti(data.Dataset):
         data_dict['origin_len'] = origin_len
         data_dict['root'] = root
 
-        data_dict['img'] = image
-        data_dict['img_indices'] = img_indices
-        data_dict['img_label'] = img_label
-        data_dict['point2img_index'] = point2img_index
+        #data_dict['img'] = image
+        #data_dict['img_indices'] = img_indices
+        #data_dict['img_label'] = img_label
+        #data_dict['point2img_index'] = point2img_index
 
         return data_dict
 
@@ -815,12 +815,12 @@ def collate_fn_default(data):
     ref_labels = data[0]['ref_label']
     origin_len = data[0]['origin_len']
     ref_indices = [torch.from_numpy(d['ref_index']) for d in data]
-    point2img_index = [torch.from_numpy(d['point2img_index']).long() for d in data]
+    #point2img_index = [torch.from_numpy(d['point2img_index']).long() for d in data]
     path = [d['root'] for d in data]
 
-    img = [torch.from_numpy(d['img']) for d in data]
-    img_indices = [d['img_indices'] for d in data]
-    img_label = [torch.from_numpy(d['img_label']) for d in data]
+    #img = [torch.from_numpy(d['img']) for d in data]
+    #img_indices = [d['img_indices'] for d in data]
+    #img_label = [torch.from_numpy(d['img_label']) for d in data]
 
     b_idx = []
     for i in range(batch_size):
@@ -838,10 +838,10 @@ def collate_fn_default(data):
         'raw_labels': torch.from_numpy(ref_labels).long(),
         'origin_len': origin_len,
         'indices': torch.cat(ref_indices).long(),
-        'point2img_index': point2img_index,
-        'img': torch.stack(img, 0).permute(0, 3, 1, 2),
-        'img_indices': img_indices,
-        'img_label': torch.cat(img_label, 0).squeeze(1).long(),
+        #'point2img_index': point2img_index,
+        #'img': torch.stack(img, 0).permute(0, 3, 1, 2),
+        #'img_indices': img_indices,
+        #'img_label': torch.cat(img_label, 0).squeeze(1).long(),
         'path': path,
     }
 

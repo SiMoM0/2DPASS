@@ -6,6 +6,13 @@ __pycache__/
 # C extensions
 *.so
 
+# models and predictions
+2dpass_model/
+2DPASS_4*
+
+# logs
+logs/
+
 # Distribution / packaging
 .Python
 build/

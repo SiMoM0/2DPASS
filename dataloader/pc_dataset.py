@@ -1,5 +1,9 @@
 import os
 import yaml
+import gzip
+import json
+import pickle
+import quaternion
 import numpy as np
 
 from PIL import Image
@@ -24,6 +28,34 @@ def get_pc_model_class(name):
     assert name in REGISTERED_PC_DATASET_CLASSES, f"available class: {REGISTERED_PC_DATASET_CLASSES}"
     return REGISTERED_PC_DATASET_CLASSES[name]
 
+def getPoses(directory):
+    all_poses = []
+    for seq in sorted(os.listdir(directory)):
+        if not os.path.exists(os.path.join(directory, seq, 'annotations', 'semseg')):
+            continue
+        poses_file = open(os.path.join(directory, seq, 'lidar', 'poses.json'))
+        poses = json.load(poses_file)
+        all_poses.extend(poses)
+        poses_file.close()
+    return all_poses
+    
+def absoluteFilePathsLidar(directory):
+    for seq in sorted(os.listdir(directory)):
+        if not os.path.exists(os.path.join(directory, seq, 'annotations', 'semseg')):
+            continue
+        for f in sorted(os.listdir(os.path.join(directory, seq, 'lidar'))):
+            if f[-4:] == 'json':
+                continue
+            yield os.path.abspath(os.path.join(directory, seq, 'lidar', f))
+
+def absoluteFilePathsLabel(directory):
+    for seq in sorted(os.listdir(directory)):
+        if not os.path.exists(os.path.join(directory, seq, 'annotations', 'semseg')):
+            continue
+        for f in sorted(os.listdir(os.path.join(directory, seq, 'annotations', 'semseg'))):
+            if f[-4:] == 'json':
+                continue
+            yield os.path.abspath(os.path.join(directory, seq, 'annotations', 'semseg', f))
 
 def absoluteFilePaths(directory, num_vote):
     for dirpath, _, filenames in os.walk(directory):
@@ -65,6 +97,9 @@ class SemanticKITTI(data.Dataset):
             proj_matrix = np.matmul(calib["P2"], calib["Tr"])
             self.proj_matrix[i_folder] = proj_matrix
 
+        print('PATHS: ', self.im_idx)
+        print('Path length: ', len(self.im_idx))
+
         seg_num_per_class = config['dataset_params']['seg_labelweights']
         seg_labelweights = seg_num_per_class / np.sum(seg_num_per_class)
         self.seg_labelweights = np.power(np.amax(seg_labelweights) / seg_labelweights, 1 / 3.0)
@@ -96,6 +131,7 @@ class SemanticKITTI(data.Dataset):
         return calib_out
 
     def __getitem__(self, index):
+        #print('INDEXXXXX: ', index)
         raw_data = np.fromfile(self.im_idx[index], dtype=np.float32).reshape((-1, 4))
         origin_len = len(raw_data)
         points = raw_data[:, :3]
@@ -115,17 +151,156 @@ class SemanticKITTI(data.Dataset):
                 annotated_data[annotated_data == -1] = self.config['dataset_params']['ignore_label']
 
         image_file = self.im_idx[index].replace('velodyne', 'image_2').replace('.bin', '.png')
-        image = Image.open(image_file)
+        #image = Image.open(image_file)
         proj_matrix = self.proj_matrix[int(self.im_idx[index][-22:-20])]
 
+        #print('POINTS: ', points.shape)
+        #print('annotated_data: ', annotated_data.shape)
+        #print('instance_label: ', instance_label.shape)
+        #print('raw data: ', raw_data[:, 3:4].shape)
+        #print('origin len: ', origin_len)
         data_dict = {}
         data_dict['xyz'] = points
         data_dict['labels'] = annotated_data.astype(np.uint8)
         data_dict['instance_label'] = instance_label
         data_dict['signal'] = raw_data[:, 3:4]
         data_dict['origin_len'] = origin_len
-        data_dict['img'] = image
+        #data_dict['img'] = image
         data_dict['proj_matrix'] = proj_matrix
+
+        return data_dict, self.im_idx[index]
+
+label_map = {
+    0: 0,
+    1: 1,
+    2: 1,
+    3: 1,
+    4: 1,
+    5: 70,
+    6: 72,
+    7: 40,
+    8: 60,
+    9: 60,
+    10: 49,
+    11: 48,
+    12: 49,
+    13: 10,
+    14: 18,
+    15: 18,
+    16: 18,
+    17: 20,
+    18: 15,
+    19: 20,
+    20: 20,
+    21: 20,
+    22: 20,
+    23: 13,
+    24: 20,
+    25: 15,
+    26: 11,
+    27: 16,
+    28: 20,
+    29: 20,
+    30: 30,
+    31: 30,
+    32: 0,
+    33: 0,
+    34: 99,
+    35: 99,
+    36: 81,
+    37: 99,
+    38: 81,
+    39: 99,
+    40: 99,
+    41: 50,
+    42: 99
+}
+
+@register_dataset
+class Pandaset(data.Dataset):
+    def __init__(self, config, data_path, imageset='train', num_vote=1):
+        with open(config['dataset_params']['label_mapping'], 'r') as stream:
+            semkittiyaml = yaml.safe_load(stream)
+        
+        self.config = config
+        self.num_vote = num_vote
+        self.learning_map = semkittiyaml['learning_map']
+        self.imageset = imageset
+
+        self.im_idx = []
+        self.im_idx += absoluteFilePathsLidar(data_path)
+        print('LIDAR LENGTH: ', len(self.im_idx))
+        self.poses = getPoses(data_path)
+        print('POSES LENGTH: ', len(self.poses))
+        self.label_idx = []
+        #print(self.imageset) # set to val
+        if self.imageset == 'val':
+            self.label_idx += absoluteFilePathsLabel(data_path)
+        print('LABEL LENGTH: ', len(self.label_idx))
+
+
+    def __len__(self):
+        'Denotes the total number of samples'
+        return len(self.im_idx)
+
+    def __getitem__(self, index):
+        with gzip.open(self.im_idx[index], 'rb') as f:
+            lidar_data = pickle.load(f)
+            # select only 360° lidar
+            pcloud = lidar_data[lidar_data['d'] == 0]
+            points = pcloud.to_numpy(dtype=np.float32)[:, :3]
+
+            # extract pose and orientation
+            pose = list(self.poses[index]['position'].values())
+            orientation = list(self.poses[index]['heading'].values())
+
+            R = quaternion.as_rotation_matrix(np.quaternion(*orientation))
+            #print(R.T*R)
+
+            # transformation matrix
+            T = np.zeros(shape=(4, 4), dtype=np.float32)
+            T[0:3, 0:3] = R
+            T[0:3, 3] = pose
+            T[3, 3] = 1
+
+            T_inv = np.linalg.inv(T)
+
+            # homogeneous coordinates
+            hpoints = np.hstack((points, np.ones((points.shape[0], 1))))
+
+            point_cloud = np.matmul(T_inv, hpoints.T).T[:, :3]
+
+            point_cloud = np.column_stack((point_cloud, pcloud.to_numpy(dtype=np.float32)[:, 3] / 255))
+
+        # raw_data = np.fromfile(self.im_idx[index], dtype=np.float32).reshape((-1, 4))
+        if self.imageset == 'test':
+            annotated_data = np.expand_dims(np.zeros_like(point_cloud[:, 0], dtype=int), axis=1)
+            instance_label = np.expand_dims(np.zeros_like(point_cloud[:, 0], dtype=int), axis=1)
+        elif self.imageset == 'val':
+            with gzip.open(self.label_idx[index], 'rb') as f:
+                labels = pickle.load(f)
+                annotated_data = labels.to_numpy(dtype=np.uint32)[:points.shape[0]]
+            # annotated_data = np.fromfile(self.label_idx[index], dtype=np.uint32).reshape((-1, 1))
+            annotated_data = annotated_data & 0xFFFF  # delete high 16 digits binary
+            annotated_data = np.array([label_map[label[0]] for label in annotated_data]).reshape(-1, 1)
+            #print(annotated_data)
+            instance_label = annotated_data >> 16
+            annotated_data = np.vectorize(self.learning_map.__getitem__)(annotated_data)
+        
+        #print('POINTS: ', points.shape)
+        #print('annotated_data: ', annotated_data.shape)
+        #print('instance_label: ', instance_label.shape)
+        #print('raw data: ', point_cloud[:, 3:4].shape)
+        #print('origin len: ', len(point_cloud))
+
+        data_dict = {}
+        data_dict['xyz'] = point_cloud[:, :3]
+        data_dict['labels'] = annotated_data.astype(np.uint8)
+        data_dict['instance_label'] = instance_label
+        data_dict['signal'] = point_cloud[:, 3:4]
+        data_dict['origin_len'] = len(point_cloud)
+        #data_dict['img'] = image
+        #data_dict['proj_matrix'] = proj_matrix
 
         return data_dict, self.im_idx[index]
 
@@ -252,7 +427,7 @@ class nuScenes(data.Dataset):
 
         # get image feature
         image_id = np.random.randint(6)
-        image, cam_sample_token = self.loadImage(index, image_id)
+        _, cam_sample_token = self.loadImage(index, image_id)
 
         cam_path, boxes_front_cam, cam_intrinsic = self.nusc.get_sample_data(cam_sample_token)
         pointsensor = self.nusc.get('sample_data', lidar_sample_token)
@@ -278,7 +453,7 @@ class nuScenes(data.Dataset):
 
         data_dict = {}
         data_dict['xyz'] = pointcloud[:, :3]
-        data_dict['img'] = image
+        #data_dict['img'] = image
         data_dict['calib_infos'] = calib_infos
         data_dict['labels'] = sem_label.astype(np.uint8)
         data_dict['signal'] = pointcloud[:, 3:4]

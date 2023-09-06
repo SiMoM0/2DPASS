@@ -16,8 +16,10 @@ model_params:
     - 4
     - 8
     - 16
+    - 16
+    - 16
 
-  hiden_size: 64
+  hiden_size: 256
   num_classes: 20
   backbone_2d: resnet34
   pretrained2d: False
@@ -26,11 +28,11 @@ model_params:
 ## Dataset options
 dataset_params:
   training_size: 19132
-  dataset_type: "point_image_dataset_semkitti"
-  pc_dataset_type: "SemanticKITTI"
+  dataset_type: "point_image_dataset_mix_semkitti"
+  pc_dataset_type: "Pandaset"
   collate_type: "collate_fn_default"
   ignore_label: 0
-  label_mapping: "./config/label_mapping/semantic-kitti.yaml"
+  label_mapping: "./config/label_mapping/panda-kitti.yaml"
 
   # 2D augmentation
   bottom_crop:
@@ -75,8 +77,8 @@ dataset_params:
     - 1168181
 
   train_data_loader:
-    data_path: "/media/simone/T7/SimoLenovo/Documents/MasterThesis/Datasets/miniKitti/sequences/"
-    batch_size: 8
+    data_path: "/media/simone/T7/Documents/Uni/MasterThesis/Datasets/PandaSet/"
+    batch_size: 4
     shuffle: True
     num_workers: 8
     rotate_aug: True
@@ -86,12 +88,12 @@ dataset_params:
     dropout_aug: True
 
   val_data_loader:
-    data_path: "/media/simone/T7/SimoLenovo/Documents/MasterThesis/Datasets/miniKitti/sequences/"
+    data_path: "/media/simone/T7/Documents/Uni/MasterThesis/Datasets/PandaSet/"
     shuffle: False
     num_workers: 8
 
     # normal test
-    batch_size: 8
+    batch_size: 4
     rotate_aug: False
     flip_aug: False
     scale_aug: False
@@ -105,10 +107,11 @@ train_params:
   max_num_epochs: 64
   learning_rate: 0.24
   optimizer: SGD  # [SGD, Adam]
-  lr_scheduler: CosineAnnealingWarmRestarts  # [StepLR, ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts]
+  lr_scheduler: CosineAnnealingLR  # [StepLR, ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts]
   momentum: 0.9
   nesterov: True
   weight_decay: 1.0e-4
 
   lambda_seg2d: 1
   lambda_xm: 0.05
+  lambda_lovasz: 1
